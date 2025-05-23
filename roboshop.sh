@@ -10,7 +10,7 @@ DOMAIN_NAME="vinnu.site"
 for instance in ${INSTANCES[@]}
 do
    INSTANCE_ID=$(aws ec2 run-instances --image-id ami-09c813fb71547fc4f --instance-type t3.micro --security-group-ids sg-0f0f6e9645d60d668  --tag-specifications "ResourceType=instance,Tags=[{Key=Name, Value=$instance}]" --query "Instances[0].InstanceId" --output text)
-    if [ $instance != "frontemd" ]
+    if [ $instance != "frontend" ]
     then
        IP=$(aws ec2 describe-instances --instance-ids $INSTANCE_ID --query "Reservations[0].Instances[0].PrivateIpAddress" --output text)
     else
@@ -18,15 +18,13 @@ do
     fi
     echo "$instance IP address: $IP"
 
-   aws route53 change-resource-record-sets \
-   --hosted-zone-id $ZONE_ID \
-   --change-batch "
+   read -r -d '' CHANGE_BATCH_JSON <<EOF
    {
         "Comment": "Creating or Updating a record set for $instance"
         ,"Changes": [{
         "Action"              : "UPSERT"
         ,"ResourceRecordSet"  : {
-            "Name"              : "$instance.$DOMAIN_NAME"
+            "Name"              : "'$instance'.'$DOMAIN_NAME'"
             ,"Type"             : "A"
             ,"TTL"              : 1
             ,"ResourceRecords"  : [{
@@ -35,5 +33,10 @@ do
  
         }
       }]
-   }"
+   }'
+   EOF
+
+   aws route53 change-resource-record-sets \
+    --hosted-zone-id "$ZONE_ID" \
+    --change-batch "$CHANGE_BATCH_JSON"
 done
