@@ -43,7 +43,7 @@ dnf install nodejs -y &>>$LOG_FILE
 VALIDATE $? "Installing nodejs"
 
 useradd --system --home /app --shell /sbin/nologin --comment "roboshop system user" roboshop &>>$LOG_FILE
-VALIDATE $? "Creating robosho system user"
+VALIDATE $? "Creating roboshop system user"
 
 mkdir /app &>>$LOG_FILE
 VALIDATE $? "Creating app directory"
