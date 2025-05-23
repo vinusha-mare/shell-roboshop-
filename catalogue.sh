@@ -34,44 +34,55 @@ VALIDATE(){
 }
 
 dnf module disable nodejs -y &>>$LOG_FILE
-VALIDATE $? "disabling default nodejs"
+VALIDATE $? "Disabling default nodejs"
 
 dnf module enable nodejs:20 -y &>>$LOG_FILE
 VALIDATE $? "Enabling nodejs:20"
 
 dnf install nodejs -y &>>$LOG_FILE
-VALIDATE $? "Installing nodejs"
+VALIDATE $? "Installing nodejs:20"
 
-useradd --system --home /app --shell /sbin/nologin --comment "roboshop system user" roboshop &>>$LOG_FILE
-VALIDATE $? "Creating roboshop system user"
+id roboshop
+if [ $? -ne 0 ]
+then
+    useradd --system --home /app --shell /sbin/nologin --comment "roboshop system user" roboshop &>>$LOG_FILE
+    VALIDATE $? "Creating roboshop system user"
+else
+    echo -e "System user roboshop already created ... $Y SKIPPING $N"
+fi
 
-mkdir /app &>>$LOG_FILE
+mkdir -p /app 
 VALIDATE $? "Creating app directory"
 
 curl -o /tmp/catalogue.zip https://roboshop-artifacts.s3.amazonaws.com/catalogue-v3.zip &>>$LOG_FILE
-VALIDATE $? "Downloading catalogue"
+VALIDATE $? "Downloading Catalogue"
 
-cd /app &>>$LOG_FILE
+rm -rf /app/*
+cd /app 
 unzip /tmp/catalogue.zip &>>$LOG_FILE
-VALIDATE $? "Unzipping catalogue"
+VALIDATE $? "unzipping catalogue"
 
-npm install  &>>$LOG_FILE
+npm install &>>$LOG_FILE
 VALIDATE $? "Installing Dependencies"
 
 cp $SCRIPT_DIR/catalogue.service /etc/systemd/system/catalogue.service
-VALIDATE $? "copying catalogue service"
+VALIDATE $? "Copying catalogue service"
 
-systemctl daemon-reload  &>>$LOG_FILE
-VALIDATE $? "Load the service"
-
+systemctl daemon-reload &>>$LOG_FILE
 systemctl enable catalogue  &>>$LOG_FILE
-VALIDATE $? "Enable the service"
-
 systemctl start catalogue
-VALIDATE $? "Stert the service"
+VALIDATE $? "Starting Catalogue"
 
-cp $SCRIPT_DIR/mongo.repo /etc/yum.repos.d/mongo.repo
+cp $SCRIPT_DIR/mongo.repo /etc/yum.repos.d/mongo.repo 
 dnf install mongodb-mongosh -y &>>$LOG_FILE
-VALIDATE $? "Installing mongodb client"
+VALIDATE $? "Installing MongoDB Client"
 
-mongosh --host mongodb.vinnu.site </app/db/master-data.js &>>$LOG_FILE
+STATUS=$(mongosh --host mongodb.daws84s.site --eval 'db.getMongo().getDBNames().indexOf("catalogue")')
+if [ $STATUS -lt 0 ]
+then
+    mongosh --host mongodb.daws84s.site </app/db/master-data.js &>>$LOG_FILE
+    VALIDATE $? "Loading data into MongoDB"
+else
+    echo -e "Data is already loaded ... $Y SKIPPING $N"
+fi
+
